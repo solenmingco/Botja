@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Author>Phoenixium, solenmingco</Author>
     <Name>CBB</Name>
     <Punchline>博兹雅 / 天佑女王：自动刷 FATE、报名紧急遭遇战（含湖岸攻城战开关）、坐骑可开关可选</Punchline>

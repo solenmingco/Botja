@@ -28,6 +28,7 @@ public partial class FateNavigationService(
     IObjectTable objects,
     IPlayer player,
     IOverlayRenderer overlay,
+    NavigationConfig navigationConfig,
     MountConfig mountConfig,
     HostileDetectionService hostileDetection,
     HostileDetectionConfig hostileDetectionConfig,
@@ -68,10 +69,18 @@ public partial class FateNavigationService(
     // 以太水晶本体是实体，有碰撞体积 —— vnavmesh 走不进圆心，直接把圆心当目标的结果就是
     // 人物贴着水晶一直往前挤（表现就是「选不中水晶、人还在往前跑」，最后超时放弃改成硬走）。
     // 所以真正下发的目标改成圆心外侧的一个站位点，判定到没到则用「离圆心多远」。
-    private const float ShardStandOffRadius = 3.5f;   // 站位点到水晶圆心的水平距离
-    private const float ShardApproachRadius = 6f;     // 判定「已经在水晶旁、可以开始传送」的半径
-    private const float ShardWalkTargetRadius = 1.5f; // 下发给 vnavmesh 的到达半径（走不到也不影响判定）
+    // 数值对齐 BOCCHI：DeadRadius 3.2 米以内是不可站立区，站位点刚好压在边缘外侧；
+    // 下发给 vnav 的到达半径收紧到 0.75 米，这样停下来的位置最多离圆心 3.95 米，
+    // 稳稳落在游戏 4.3 米的交互半径里（以前 6 米的判定 + 1.5 米的到达半径经常停在 5~6 米）。
+    private const float ShardStandOffRadius = 3.2f;   // 站位点到水晶圆心的水平距离
+    private const float ShardWalkTargetRadius = 0.75f; // 下发给 vnavmesh 的到达半径
+    private const float ShardInteractRadius = 4.3f;   // 游戏以太水晶的交互半径（Lifestream 能点中的上限）
     private const long ShardSettleMs = 350;           // 到站后先彻底停稳再喊 Lifestream，避免边走边点
+    // 设置里可调；下限锁在「站位点 + vnav 到达半径」，否则永远判不到「已到」，只会超时改成硬走。
+    private float ShardApproachRadius => Math.Clamp(
+        navigationConfig.ShardApproachDistance,
+        ShardStandOffRadius + ShardWalkTargetRadius,
+        8f);
     // Wider than ShardApproachRadius — matches BOCCHI's IsAlreadyAtAetheryte arrivedRadius
     // (post-TP landings and menu-open range are often several yards from the crystal).
     private const float ArrivedAtAetheryteRadius = 12f;
@@ -312,7 +321,8 @@ public partial class FateNavigationService(
         }
 
         // 用「离水晶多远」而不是「离站位点多远」判断是否已经在水晶旁：
-        // 从比 ShardApproachRadius 更远处喊传送，Lifestream 会直接拒绝（Destination could not be found (3)）。
+        // 从水晶交互半径（ShardInteractRadius ≈ 4.3 米）之外喊传送，Lifestream 会直接拒绝
+        // （Destination could not be found (3)）。默认判定 4 米，留一点余量。
         bool alreadyNearShard = FindNearestShardStruct(playerPos.Value) is { } nearShard && Dist2D(playerPos.Value, nearShard.Position) <= ShardApproachRadius;
         AethernetShard? sourceShard = alreadyNearShard ? null : FindNearestShardStruct(playerPos.Value);
 
@@ -1105,12 +1115,18 @@ public partial class FateNavigationService(
             if (UpdateHostileAvoidance(pendingSourceShardStandOffPos, ShardApproachRadius))
                 return;
 
-            bool arrived = objects.LocalPlayer is { } player && Dist2D(player.Position, pendingSourceShardPos) <= ShardApproachRadius;
-            if (arrived)
+            float shardDistance = objects.LocalPlayer is { } player ? Dist2D(player.Position, pendingSourceShardPos) : float.MaxValue;
+            bool arrived = shardDistance <= ShardApproachRadius;
+            // vnav 被水晶碰撞体挡住、提前结束路径时，人可能停在 4.0~4.3 米之间。
+            // 这时再重复下发寻路只会让人一直往前挤；既然已经停下且仍在游戏交互半径内，
+            // 就直接进入停稳阶段（StoppingAtShard 会等真正静止后再喊 Lifestream）。
+            bool stoppedInInteractRange = shardDistance <= ShardInteractRadius
+                && !SafeIsPathfinding() && !SafeIsRunning();
+            if (arrived || stoppedInInteractRange)
             {
                 // 到了就先停：vnav 的 Stop 只发一次，之后由 StoppingAtShard 等人物真正停稳，
                 // 再交给 Lifestream —— 这是「选不中水晶」的修法。
-                log.Debug("[FateNav] Update: WalkingToSourceShard done after {Ticks} ticks, stopping before teleport", phaseTicks);
+                log.Debug("[FateNav] Update: WalkingToSourceShard done after {Ticks} ticks ({Dist:F1}y, arrived={Arrived}, stoppedInRange={StoppedInRange}), stopping before teleport", phaseTicks, shardDistance, arrived, stoppedInInteractRange);
                 SafeStopVnav();
                 phase = TeleportPhase.StoppingAtShard;
                 phaseTicks = 0;
@@ -1145,7 +1161,7 @@ public partial class FateNavigationService(
             if (objects.LocalPlayer is not { } stopping) return;
 
             // 被怪推走/滑出水晶范围就重新靠近，别在原地对着空气点。
-            if (Dist2D(stopping.Position, pendingSourceShardPos) > ShardApproachRadius * 1.5f)
+            if (Dist2D(stopping.Position, pendingSourceShardPos) > ShardApproachRadius + 1.5f)
             {
                 log.Debug("[FateNav] Update: drifted away from shard while stopping, walking back");
                 WalkToShardThenAethernet(pendingSourceShardPos, pendingDestination);

@@ -3,7 +3,7 @@
     "Author": "Phoenixium, solenmingco",
     "Name": "CBB",
     "InternalName": "Botja",
-    "AssemblyVersion": "0.3.0.0",
+    "AssemblyVersion": "0.3.1.0",
     "Description": "自动赶路、自动报名紧急遭遇战（中文客户端可用）、自动刷 FATE、刷怪、道具鉴定与战记兑换。依赖 vnavmesh 与 Lifestream。",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/solenmingco/Botja",
@@ -14,7 +14,7 @@
     "LoadPriority": 0,
     "Punchline": "博兹雅 / 天佑女王：自动刷 FATE、报名紧急遭遇战（含湖岸攻城战开关）、坐骑可开关可选",
     "AcceptsFeedback": true,
-    "DownloadLinkInstall": "https://github.com/solenmingco/Botja/releases/download/0.3.0/Botja.zip",
-    "DownloadLinkUpdate": "https://github.com/solenmingco/Botja/releases/download/0.3.0/Botja.zip"
+    "DownloadLinkInstall": "https://github.com/solenmingco/Botja/releases/download/0.3.1/Botja.zip",
+    "DownloadLinkUpdate": "https://github.com/solenmingco/Botja/releases/download/0.3.1/Botja.zip"
   }
 ]

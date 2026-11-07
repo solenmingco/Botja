@@ -128,12 +128,17 @@ public sealed class FatePriorityConfig : IAutoConfig
     public float MaxProgressPercent { get; set; } = 100f;
 }
 
-// 坐骑相关设置已经从「移动与导航」搬到独立的 MountConfig，这个分页不再显示给用户，
-// 只保留在配置里让 PluginConfig.Migrate() 能把老配置的 MountRange 搬过去。
-[ConfigHidden]
+// 导航距离设置。旧版本把「多远才上坐骑」放在这里，现在只留一个无 UI 的字段给
+// PluginConfig.Migrate() 读一次，坐骑相关选项都在 MountConfig 里。
 public sealed class NavigationConfig : IAutoConfig
 {
     public float MountRange { get; set; } = 30f;
+
+    // 走到离以太水晶圆心多近就停稳 / 喊 Lifestream。游戏的水晶交互半径约 4.3 米，
+    // BOCCHI 用 3.2 米站位 + 3.7 米到达判定；这里默认 4 米，比原来的 6 米近很多。
+    // 别调太大，超过 4.3 米 Lifestream 会直接拒绝传送（Destination could not be found）。
+    [FloatRange(4f, 8f, Order = 0)]
+    public float ShardApproachDistance { get; set; } = 4f;
 }
 
 public sealed class MountConfig : IAutoConfig
