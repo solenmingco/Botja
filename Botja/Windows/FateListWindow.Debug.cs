@@ -107,7 +107,12 @@ public partial class FateListWindow
         ImGui.SameLine();
         if (ImGui.Button("Copy CE buttons"))
             ImGui.SetClipboardText(string.Join("\n", guiInteract.GetCeRecruitmentButtons()));
-        ImGui.TextUnformatted(guiInteract.DebugCeRecruitmentWindow());
+        ImGui.SameLine();
+        if (ImGui.Button("Copy CE dump"))
+            ImGui.SetClipboardText(guiInteract.DumpCeRecruitment());
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Copies the recruitment agent's rows, every button's label/param/enabled state, and the window's text nodes.");
+        ImGui.TextUnformatted(string.Join("\n", guiInteract.DumpCeRecruitment().Split('\n').Take(8)));
         ImGui.InputText("CE button label", ref ceRecruitmentButton, 64);
         ImGui.SameLine();
         if (ImGui.Button("Click CE button"))

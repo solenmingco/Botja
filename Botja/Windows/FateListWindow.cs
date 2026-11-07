@@ -87,6 +87,8 @@ public partial class FateListWindow(
                 ceSignup.Start();
         }
         ImGui.TextUnformatted(ceSignup.Status);
+        if (!string.IsNullOrEmpty(ceSignup.LastAction))
+            ImGui.TextUnformatted($"Last click: {ceSignup.LastAction}");
         ImGui.TextUnformatted($"Detected CE timer: {ceSignup.DetectedTimer}");
 
         if (ceSignup.TryFindRecruitingEvent(out var recruitingCeId))
