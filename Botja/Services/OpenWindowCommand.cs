@@ -14,7 +14,7 @@ public sealed class OpenWindowCommand(
 {
     public override string Command => "cbb";
 
-    public override (string help, bool show) BuildHelp() => ("Open the Fate List window, or use 'config' for settings.", true);
+    public override (string help, bool show) BuildHelp() => ("打开博兹雅助手主窗口；加 config 直接打开设置。", true);
 
     public override void Execute(CommandContext context)
     {
@@ -31,6 +31,6 @@ public sealed class OpenWindowCommand(
         }
 
         var argument = context.Args.Length > 0 ? context.Args[0] : string.Empty;
-        throw new ArgumentException($"Unknown argument: {argument}");
+        throw new ArgumentException($"未知参数：{argument}");
     }
 }

@@ -35,7 +35,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
     private int automationTicks;
     private DateTime automationNextActionAt;
     private DateTime automationPhaseStartedAt;
-    private string automationStatus = "Idle";
+    private string automationStatus = "空闲";
 
     public string ItemInspectionAutomationStatus => automationStatus;
 
@@ -44,7 +44,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         var list = GetItemInspectionList();
         if (list == null)
         {
-            automationStatus = "Cannot start: ItemInspectionList is not open.";
+            automationStatus = "无法开始：鉴定列表没有打开。";
             log.Debug("[GuiInteract] {Status}", automationStatus);
             return;
         }
@@ -58,7 +58,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         automationNextActionAt = DateTime.MinValue;
         automationPhaseStartedAt = DateTime.UtcNow;
         automationPhase = ItemInspectionAutomationPhase.SelectRow;
-        automationStatus = $"Running: 0/{automationListLength}";
+        automationStatus = $"运行中：0/{automationListLength}";
         log.Debug("[GuiInteract] ItemInspection automation started, listLength={ListLength}", automationListLength);
     }
 
@@ -74,7 +74,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         automationTicks = 0;
         automationNextActionAt = DateTime.MinValue;
         automationPhaseStartedAt = DateTime.MinValue;
-        automationStatus = "Stopped";
+        automationStatus = "已停止";
     }
 
     public void Update()
@@ -95,7 +95,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         var phaseElapsed = DateTime.UtcNow - automationPhaseStartedAt;
         if (phaseElapsed > AutomationPhaseTimeout)
         {
-            automationStatus = $"Stopped: timeout in {automationPhase} at row {automationRowIndex} after {phaseElapsed.TotalSeconds:F1}s ({automationTicks} ticks)";
+            automationStatus = $"已停止：{automationPhase} 阶段在第 {automationRowIndex} 行超时（{phaseElapsed.TotalSeconds:F1} 秒 / {automationTicks} tick）";
             log.Debug("[GuiInteract] {Status}", automationStatus);
             StopItemInspectionAutomation();
             return;
@@ -107,7 +107,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 var list = GetItemInspectionList();
                 if (list == null)
                 {
-                    automationStatus = "Stopped: ItemInspectionList is not open.";
+                    automationStatus = "已停止：鉴定列表已关闭。";
                     StopItemInspectionAutomation();
                     return;
                 }
@@ -115,7 +115,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 automationListLength = list->ListLength;
                 if (automationListLength <= 0)
                 {
-                    automationStatus = $"Done: processed {automationProcessedItems} items";
+                    automationStatus = $"完成：共处理 {automationProcessedItems} 件物品";
                     automationPhase = ItemInspectionAutomationPhase.Idle;
                     log.Debug("[GuiInteract] {Status}", automationStatus);
                     return;
@@ -124,7 +124,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 automationRowIndex = FindFirstProcessableItemInspectionRow(list);
                 if (automationRowIndex < 0)
                 {
-                    automationStatus = $"Done: processed {automationProcessedItems} items; {automationListLength} skipped";
+                    automationStatus = $"完成：处理 {automationProcessedItems} 件，跳过 {automationListLength} 件";
                     automationPhase = ItemInspectionAutomationPhase.Idle;
                     log.Debug("[GuiInteract] {Status}", automationStatus);
                     return;
@@ -134,7 +134,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 automationItemNextClicksRemaining = automationItemQuantity;
                 if (!SelectItemInspectionListRow(automationRowIndex, true))
                 {
-                    automationStatus = $"Stopped: cannot select row {automationRowIndex}";
+                    automationStatus = $"已停止：无法选中第 {automationRowIndex} 行";
                     StopItemInspectionAutomation();
                     return;
                 }
@@ -145,7 +145,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
             case ItemInspectionAutomationPhase.ClickRow:
                 if (!ClickItemInspectionListRow(automationRowIndex))
                 {
-                    automationStatus = $"Stopped: cannot click row {automationRowIndex}";
+                    automationStatus = $"已停止：无法点击第 {automationRowIndex} 行";
                     StopItemInspectionAutomation();
                     return;
                 }
@@ -171,7 +171,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 {
                     if (automationItemNextClicksRemaining > 0)
                     {
-                        automationStatus = $"Running: waiting for result, {automationItemNextClicksRemaining} item clicks remaining";
+                        automationStatus = $"运行中：等待结果，还剩 {automationItemNextClicksRemaining} 次物品点击";
                         SetAutomationPhase(ItemInspectionAutomationPhase.WaitForResult);
                         return;
                     }
@@ -191,13 +191,13 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
 
                 if (!ClickItemInspectionResultNext())
                 {
-                    automationStatus = $"Stopped: cannot click Next for row {automationRowIndex}";
+                    automationStatus = $"已停止：第 {automationRowIndex} 行的「下一个」点不动";
                     StopItemInspectionAutomation();
                     return;
                 }
 
                 automationItemNextClicksRemaining--;
-                automationStatus = $"Running: processed {automationProcessedItems}, remaining {automationListLength}, item click {automationItemQuantity - automationItemNextClicksRemaining}/{automationItemQuantity}";
+                automationStatus = $"运行中：已处理 {automationProcessedItems}，剩余 {automationListLength}，物品点击 {automationItemQuantity - automationItemNextClicksRemaining}/{automationItemQuantity}";
                 automationNextActionAt = DateTime.UtcNow + AutomationActionDelay;
                 return;
 
@@ -214,7 +214,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         automationTicks = 0;
         automationNextActionAt = DateTime.UtcNow + AutomationActionDelay;
         automationPhaseStartedAt = DateTime.UtcNow;
-        automationStatus = $"Running: processed {automationProcessedItems}, remaining {automationListLength}, phase={automationPhase}, item={automationItemQuantity - automationItemNextClicksRemaining}/{automationItemQuantity}";
+        automationStatus = $"运行中：已处理 {automationProcessedItems}，剩余 {automationListLength}，阶段={automationPhase}，物品={automationItemQuantity - automationItemNextClicksRemaining}/{automationItemQuantity}";
     }
 
     // Generic "click row 0, then confirm SelectYesno" loop — for addons like SkyIslandExchange2 where
@@ -234,7 +234,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
     private int genericListTicks;
     private DateTime genericListNextActionAt;
     private DateTime genericListPhaseStartedAt;
-    private string genericListStatus = "Idle";
+    private string genericListStatus = "空闲";
 
     public string GenericListAutomationStatus => genericListStatus;
 
@@ -247,7 +247,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         genericListNextActionAt = DateTime.MinValue;
         genericListPhaseStartedAt = DateTime.UtcNow;
         genericListPhase = GenericListAutomationPhase.ClickRow;
-        genericListStatus = $"Running: {addonName} list {listNodeId}";
+        genericListStatus = $"运行中：{addonName} 列表 {listNodeId}";
         log.Debug("[GuiInteract] Generic list automation started for {AddonName} node {ListNodeId}", addonName, listNodeId);
     }
 
@@ -259,7 +259,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         genericListPhase = GenericListAutomationPhase.Idle;
         genericListTicks = 0;
         genericListNextActionAt = DateTime.MinValue;
-        genericListStatus = "Stopped";
+        genericListStatus = "已停止";
     }
 
     private void UpdateGenericListAutomation()
@@ -274,7 +274,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         var phaseElapsed = DateTime.UtcNow - genericListPhaseStartedAt;
         if (phaseElapsed > AutomationPhaseTimeout)
         {
-            genericListStatus = $"Stopped: timeout in {genericListPhase} after {phaseElapsed.TotalSeconds:F1}s ({genericListTicks} ticks)";
+            genericListStatus = $"已停止：{genericListPhase} 阶段超时（{phaseElapsed.TotalSeconds:F1} 秒 / {genericListTicks} tick）";
             log.Debug("[GuiInteract] {Status}", genericListStatus);
             StopGenericListAutomation();
             return;
@@ -285,7 +285,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
             case GenericListAutomationPhase.ClickRow:
                 if (!IsAddonVisible(genericListAddonName))
                 {
-                    genericListStatus = $"Done: {genericListAddonName} closed, processed {genericListProcessedRows} rows";
+                    genericListStatus = $"完成：{genericListAddonName} 已关闭，共处理 {genericListProcessedRows} 行";
                     genericListPhase = GenericListAutomationPhase.Idle;
                     log.Debug("[GuiInteract] {Status}", genericListStatus);
                     return;
@@ -294,7 +294,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
                 int? remainingRows = GetAddonListLength(genericListAddonName, genericListNodeId);
                 if (remainingRows is null or <= 0)
                 {
-                    genericListStatus = $"Done: {genericListAddonName} has no more rows, processed {genericListProcessedRows}";
+                    genericListStatus = $"完成：{genericListAddonName} 已无更多行，共处理 {genericListProcessedRows} 行";
                     genericListPhase = GenericListAutomationPhase.Idle;
                     log.Debug("[GuiInteract] {Status}", genericListStatus);
                     return;
@@ -302,14 +302,14 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
 
                 if (!SelectAddonListRow(genericListAddonName, genericListNodeId, 0, true))
                 {
-                    genericListStatus = $"Stopped: cannot select row 0 in {genericListAddonName}";
+                    genericListStatus = $"已停止：无法选中 {genericListAddonName} 的第 0 行";
                     StopGenericListAutomation();
                     return;
                 }
 
                 if (!ClickAddonListRow(genericListAddonName, genericListNodeId, 0))
                 {
-                    genericListStatus = $"Stopped: cannot click row 0 in {genericListAddonName}";
+                    genericListStatus = $"已停止：无法点击 {genericListAddonName} 的第 0 行";
                     StopGenericListAutomation();
                     return;
                 }
@@ -339,7 +339,7 @@ public unsafe partial class GuiInteractionService(IGameGui gameGui, IAddonLifecy
         genericListTicks = 0;
         genericListNextActionAt = DateTime.UtcNow + AutomationActionDelay;
         genericListPhaseStartedAt = DateTime.UtcNow;
-        genericListStatus = $"Running: {genericListAddonName}, processed {genericListProcessedRows}, phase={genericListPhase}";
+        genericListStatus = $"运行中：{genericListAddonName}，已处理 {genericListProcessedRows}，阶段={genericListPhase}";
     }
 
     // Clicks "Yes" (button index 0) on the SelectYesno addon if it is currently open.

@@ -25,19 +25,19 @@ public sealed class BlacklistChecklistRenderer(IClientState clientState)
 
         if (sectors == null)
         {
-            ImGui.TextUnformatted("Blacklist checklists are available in the Bozjan Southern Front and Zadnor.");
+            ImGui.TextUnformatted("忽略名单只能在博兹雅战线 / 天佑女王里使用。");
             return false;
         }
 
         var ignoredIds = (HashSet<uint>?)prop.GetValue(target) ?? [];
         var changed = false;
-        ImGui.TextUnformatted(attr.CriticalEngagements ? "Critical Engagements" : "FATEs / Skirmishes");
+        ImGui.TextUnformatted(attr.CriticalEngagements ? "紧急遭遇战（CE）" : "FATE / 遭遇战");
         ImGui.Separator();
 
         for (var sectorIndex = 0; sectorIndex < sectors.Count; sectorIndex++)
         {
             var sector = sectors[sectorIndex];
-            if (!ImGui.CollapsingHeader($"Sector {(int)sector.Sector}: {sector.Name}"))
+            if (!ImGui.CollapsingHeader($"区域 {(int)sector.Sector}：{sector.Name}"))
                 continue;
 
             var entries = attr.CriticalEngagements ? sector.CriticalEngagements : sector.Fates;

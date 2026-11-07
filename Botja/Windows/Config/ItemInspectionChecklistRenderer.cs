@@ -20,7 +20,7 @@ public sealed class ItemInspectionChecklistRenderer(IDataManager data) : IFieldR
         var item = data.GetExcelSheet<Lumina.Excel.Sheets.Item>()?.GetRowOrDefault((uint)itemId);
         return item is { } row && !string.IsNullOrWhiteSpace(row.Name.ToString())
             ? row.Name.ToString()
-            : $"Item ID {itemId}";
+            : $"物品 ID {itemId}";
     }
 
     public bool Render(object target, PropertyInfo prop, ItemInspectionChecklistAttribute attr, Type owner, ITranslator translator)
@@ -34,14 +34,14 @@ public sealed class ItemInspectionChecklistRenderer(IDataManager data) : IFieldR
         var skippedIds = (HashSet<int>?)prop.GetValue(target) ?? [];
         var changed = false;
 
-        ImGui.TextUnformatted("Use the checkboxes beside items in the appraisal list to add entries here.");
+        ImGui.TextUnformatted("在鉴定列表里勾选物品左侧的复选框，就会加到这里。");
         if (skippedIds.Count == 0)
         {
-            ImGui.TextUnformatted("No items are currently skipped.");
+            ImGui.TextUnformatted("当前没有跳过任何物品。");
             return false;
         }
 
-        if (ImGui.Button("Clear all skipped items"))
+        if (ImGui.Button("清空跳过列表"))
         {
             skippedIds.Clear();
             changed = true;
@@ -50,7 +50,7 @@ public sealed class ItemInspectionChecklistRenderer(IDataManager data) : IFieldR
         foreach (var itemId in skippedIds.OrderBy(id => GetItemName(id), StringComparer.OrdinalIgnoreCase).ToArray())
         {
             var skipped = true;
-            if (!ImGui.Checkbox($"{GetItemName(itemId)} (ID {itemId})##{prop.Name}_{itemId}", ref skipped))
+            if (!ImGui.Checkbox($"{GetItemName(itemId)}（ID {itemId}）##{prop.Name}_{itemId}", ref skipped))
                 continue;
 
             skippedIds.Remove(itemId);

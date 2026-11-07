@@ -41,17 +41,17 @@ public sealed class BossModProfileChecklistRenderer(
 
         if (!ipcAvailable)
         {
-            ImGui.TextUnformatted("BossMod profile list IPC is unavailable.");
+            ImGui.TextUnformatted("BossMod 预设列表 IPC 不可用。");
             return false;
         }
 
         if (available.Length == 0)
         {
-            ImGui.TextUnformatted("No BossMod profiles found.");
+            ImGui.TextUnformatted("没有找到 BossMod 预设。");
             return false;
         }
 
-        ImGui.TextUnformatted("BossMod profiles enabled inside FATEs / CEs:");
+        ImGui.TextUnformatted("在 FATE / CE 中启用的 BossMod 预设：");
         var changed = false;
         foreach (var name in available)
         {

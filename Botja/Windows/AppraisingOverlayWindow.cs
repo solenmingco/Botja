@@ -53,13 +53,13 @@ public class AppraisingOverlayWindow(GuiInteractionService guiInteract)
 
     protected override void Render()
     {
-        ImGui.TextUnformatted("Appraising");
+        ImGui.TextUnformatted("道具鉴定");
         ImGui.Separator();
 
-        if (ImGui.Button("Start"))
+        if (ImGui.Button("开始"))
             guiInteract.StartItemInspectionAutomation();
         ImGui.SameLine();
-        if (ImGui.Button("Stop"))
+        if (ImGui.Button("停止"))
             guiInteract.StopItemInspectionAutomation();
 
         ImGui.TextWrapped(guiInteract.ItemInspectionAutomationStatus);

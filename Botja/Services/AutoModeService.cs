@@ -46,7 +46,7 @@ public sealed class AutoModeService(
     private const float FateArrivalBufferYalms = 30f;
 
     public bool IsRunning { get; private set; }
-    public string Status { get; private set; } = "Idle";
+    public string Status { get; private set; } = "空闲";
 
     public void Start()
     {
@@ -55,7 +55,7 @@ public sealed class AutoModeService(
         autoModeState.IsEngagedInFate = false;
         pendingIsFollowFate = false;
         waitingForFollowUp = false;
-        Status = "Looking for the next FATE or CE.";
+        Status = "正在寻找下一个 FATE 或 CE。";
     }
 
     public void Stop()
@@ -68,7 +68,7 @@ public sealed class AutoModeService(
         nav.Stop();
         if (ceSignup.IsRunning)
             ceSignup.Stop();
-        Status = "Stopped";
+        Status = "已停止";
     }
 
     public void Update()
@@ -88,7 +88,7 @@ public sealed class AutoModeService(
                 ceSignup.Stop();
             pendingIsFollowFate = false;
             waitingForFollowUp = false;
-            Status = "Paused: player is dead.";
+            Status = "已暂停：角色已阵亡。";
             return;
         }
 
@@ -105,7 +105,7 @@ public sealed class AutoModeService(
                 combatControl.SetActiveFate(0);
             pendingIsFollowFate = false;
             waitingForFollowUp = false;
-            Status = "Engaged in a critical engagement; waiting for it to finish.";
+            Status = "正在打紧急遭遇战，等待结束。";
             return;
         }
 
@@ -130,8 +130,8 @@ public sealed class AutoModeService(
             pendingIsFollowFate = false;
             waitingForFollowUp = false;
             Status = autoModeConfig.DoCriticalEngagements
-                ? "FATE automation is disabled; waiting for a critical engagement."
-                : "FATE and critical engagement automation are disabled.";
+                ? "FATE 自动化已关闭，只等待紧急遭遇战。"
+                : "FATE 与紧急遭遇战自动化均已关闭。";
             return;
         }
 
@@ -149,7 +149,7 @@ public sealed class AutoModeService(
             else if (NowMs() < followUpDeadlineMs)
             {
                 double secondsLeft = (followUpDeadlineMs - NowMs()) / 1000.0;
-                Status = $"Waiting near {pendingFollowName}'s spot for a follow-up FATE ({secondsLeft:F0}s left).";
+                Status = $"在 {pendingFollowName} 附近等待后续 FATE（还剩 {secondsLeft:F0} 秒）。";
                 return;
             }
             else
@@ -187,7 +187,7 @@ public sealed class AutoModeService(
 
         if (combatControl.ActiveFateId != 0)
         {
-            Status = "Engaged; waiting for it to finish.";
+            Status = "战斗中，等待结束。";
             return;
         }
 
@@ -199,7 +199,7 @@ public sealed class AutoModeService(
             waitingForFollowUp = true;
             followUpDeadlineMs = NowMs() + (long)(follow.WaitSeconds * 1000);
             log.Debug("[AutoMode] {Name} was a marked follow FATE; waiting {Seconds}s at its position for a follow-up", pendingFollowName, follow.WaitSeconds);
-            Status = $"Waiting near {pendingFollowName}'s spot for a follow-up FATE.";
+            Status = $"在 {pendingFollowName} 附近等待后续 FATE。";
             nav.AutoNavigate(pendingFollowPosition, $"{pendingFollowName} (follow-up wait spot)");
             return;
         }
@@ -207,12 +207,12 @@ public sealed class AutoModeService(
         var top = fatePriority.GetAutoSelectableFates(fateTable).FirstOrDefault();
         if (top == null)
         {
-            Status = "No FATEs or CEs available; waiting.";
+            Status = "当前没有可打的 FATE 或 CE，等待中。";
             return;
         }
 
         log.Debug("[AutoMode] Navigating to top FATE {Name} (progress={Progress}%, maxProgressPercent={MaxProgressPercent})", top.Name, top.Progress, fatePriorityConfig.MaxProgressPercent);
-        Status = $"Heading to {top.Name}.";
+        Status = $"正在前往 {top.Name}。";
         combatControl.SetActiveFate(top.FateId);
         pendingIsFollowFate = fatePriority.IsFollowFate(top);
         pendingFollowPosition = top.Position;

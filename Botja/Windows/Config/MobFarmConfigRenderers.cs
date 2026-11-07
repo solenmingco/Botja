@@ -27,12 +27,12 @@ public sealed class MobTemplateChecklistRenderer(HostileDetectionService hostile
             .OrderBy(hostile => hostile.Name, StringComparer.Ordinal)
             .ToArray();
 
-        ImGui.TextUnformatted("Select mob templates currently detected nearby.");
+        ImGui.TextUnformatted("勾选当前附近检测到的怪物模板。");
         var changed = false;
         foreach (var hostile in available)
         {
             bool isSelected = selected.Contains(hostile.DataId);
-            if (!ImGui.Checkbox($"{hostile.Name} (ID {hostile.DataId})##mob_{hostile.DataId}", ref isSelected))
+            if (!ImGui.Checkbox($"{hostile.Name}（ID {hostile.DataId}）##mob_{hostile.DataId}", ref isSelected))
                 continue;
 
             if (isSelected)
@@ -44,9 +44,9 @@ public sealed class MobTemplateChecklistRenderer(HostileDetectionService hostile
 
         foreach (uint selectedId in selected.Except(available.Select(hostile => hostile.DataId)).OrderBy(id => id).ToArray())
         {
-            ImGui.TextUnformatted($"Selected mob ID {selectedId} is not currently detected.");
+            ImGui.TextUnformatted($"已选怪物 ID {selectedId} 当前没有检测到。");
             ImGui.SameLine();
-            if (ImGui.SmallButton($"Remove##mob_{selectedId}"))
+            if (ImGui.SmallButton($"移除##mob_{selectedId}"))
             {
                 selected.Remove(selectedId);
                 changed = true;
@@ -70,9 +70,9 @@ public sealed class FarmSpotListRenderer(IObjectTable objects)
         var spots = (List<MobFarmSpot>?)prop.GetValue(target) ?? [];
         bool changed = false;
 
-        if (ImGui.Button("Add spot at player position") && objects.LocalPlayer is { } player)
+        if (ImGui.Button("在当前位置添加刷怪点") && objects.LocalPlayer is { } player)
         {
-            var spot = new MobFarmSpot { Name = $"Spot {spots.Count + 1}" };
+            var spot = new MobFarmSpot { Name = $"刷怪点 {spots.Count + 1}" };
             spot.SetOrigin(player.Position);
             spots.Add(spot);
             changed = true;
@@ -85,41 +85,41 @@ public sealed class FarmSpotListRenderer(IObjectTable objects)
             if (ImGui.TreeNode($"{spot.Name}##spot"))
             {
                 string name = spot.Name;
-                if (ImGui.InputText("Name", ref name, 64))
+                if (ImGui.InputText("名称", ref name, 64))
                 {
                     spot.Name = name;
                     changed = true;
                 }
 
                 bool enabled = spot.Enabled;
-                if (ImGui.Checkbox("Enabled", ref enabled))
+                if (ImGui.Checkbox("启用", ref enabled))
                 {
                     spot.Enabled = enabled;
                     changed = true;
                 }
 
                 int priority = spot.Priority;
-                if (ImGui.InputInt("Priority", ref priority))
+                if (ImGui.InputInt("优先级", ref priority))
                 {
                     spot.Priority = priority;
                     changed = true;
                 }
 
                 Vector3 origin = spot.Origin;
-                if (ImGui.InputFloat3("Farm position", ref origin))
+                if (ImGui.InputFloat3("刷怪坐标", ref origin))
                 {
                     spot.SetOrigin(origin);
                     changed = true;
                 }
 
-                if (ImGui.Button("Set farm position to player") && objects.LocalPlayer is { } localPlayer)
+                if (ImGui.Button("把刷怪坐标设为当前位置") && objects.LocalPlayer is { } localPlayer)
                 {
                     spot.SetOrigin(localPlayer.Position);
                     changed = true;
                 }
 
                 bool useStackPoint = spot.UseStackPoint;
-                if (ImGui.Checkbox("Use stack position", ref useStackPoint))
+                if (ImGui.Checkbox("使用聚怪点", ref useStackPoint))
                 {
                     spot.UseStackPoint = useStackPoint;
                     changed = true;
@@ -128,13 +128,13 @@ public sealed class FarmSpotListRenderer(IObjectTable objects)
                 if (spot.UseStackPoint)
                 {
                     Vector3 stackPoint = spot.StackPoint ?? Vector3.Zero;
-                    if (ImGui.InputFloat3("Stack position", ref stackPoint))
+                    if (ImGui.InputFloat3("聚怪坐标", ref stackPoint))
                     {
                         spot.SetStackPoint(stackPoint);
                         changed = true;
                     }
 
-                    if (ImGui.Button("Set stack position to player") && objects.LocalPlayer is { } stackPlayer)
+                    if (ImGui.Button("把聚怪坐标设为当前位置") && objects.LocalPlayer is { } stackPlayer)
                     {
                         spot.SetStackPoint(stackPlayer.Position);
                         changed = true;
@@ -142,13 +142,13 @@ public sealed class FarmSpotListRenderer(IObjectTable objects)
                 }
 
                 int minimum = spot.MinimumMobsToStartFight;
-                if (ImGui.InputInt("Fight threshold (0 uses global)", ref minimum))
+                if (ImGui.InputInt("开打阈值（0 = 用全局设置）", ref minimum))
                 {
                     spot.MinimumMobsToStartFight = Math.Max(0, minimum);
                     changed = true;
                 }
 
-                if (ImGui.Button("Remove spot"))
+                if (ImGui.Button("删除刷怪点"))
                 {
                     spots.RemoveAt(index);
                     index--;

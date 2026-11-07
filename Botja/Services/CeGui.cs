@@ -161,7 +161,7 @@ public unsafe partial class GuiInteractionService
         var addon = GetCeRecruitmentAddon();
         if (addon == null)
         {
-            detail = "recruitment window not open";
+            detail = "招募窗口没有打开";
             return false;
         }
 
@@ -174,7 +174,7 @@ public unsafe partial class GuiInteractionService
 
         if (buttons.Count == 0)
         {
-            detail = $"no enabled button (rows={rows.Count})";
+            detail = $"没有可点的按钮（行数={rows.Count}）";
             return false;
         }
 
@@ -189,7 +189,7 @@ public unsafe partial class GuiInteractionService
             if (byParam != null)
             {
                 pick = byParam;
-                reason = $"event param {rowIndex}";
+                reason = $"事件参数=行号 {rowIndex}";
             }
         }
 
@@ -200,7 +200,7 @@ public unsafe partial class GuiInteractionService
             if (byEventId != null)
             {
                 pick = byEventId;
-                reason = $"event param #{eventId}";
+                reason = $"事件参数=事件 ID {eventId}";
             }
         }
 
@@ -208,7 +208,7 @@ public unsafe partial class GuiInteractionService
         if (pick == null && rows.Count == 1 && buttons.Count == 1)
         {
             pick = buttons[0];
-            reason = "single row, single button";
+            reason = "只有一行一个按钮";
         }
 
         // 4. Localised label match.
@@ -224,25 +224,25 @@ public unsafe partial class GuiInteractionService
         if (pick == null && rowIndex >= 0 && buttons.Count == rows.Count && rowIndex < buttons.Count)
         {
             pick = buttons[rowIndex];
-            reason = $"position {rowIndex} of {rows.Count}";
+            reason = $"按行序第 {rowIndex + 1}/{rows.Count}";
         }
 
         // 6. Only one enabled button at all — take it rather than sit idle.
         if (pick == null && buttons.Count == 1)
         {
             pick = buttons[0];
-            reason = "only enabled button";
+            reason = "唯一的可点按钮";
         }
 
         if (pick == null)
         {
-            detail = "no matching button | rows=" + string.Join(", ", rows.Select(row => $"#{row.Index} id={row.EventId} {row.State} '{row.Name}'")) +
+            detail = "没有匹配到按钮 | 行=" + string.Join(", ", rows.Select(row => $"#{row.Index} id={row.EventId} {row.State} '{row.Name}'")) +
                      " | buttons=" + string.Join(", ", buttons.Select(button => $"'{button.Text}'/p{button.Param}"));
             return false;
         }
 
         FireCeButton(addon, pick);
-        detail = $"clicked '{pick.Text}' (param={pick.Param}, {reason})";
+        detail = $"已点击「{pick.Text}」（参数={pick.Param}，{reason}）";
         return true;
     }
 

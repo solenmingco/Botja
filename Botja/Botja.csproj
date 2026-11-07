@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Author>Phoenixium, solenmingco</Author>
     <Name>CBB</Name>
-    <Punchline>FATE and CE tool for Bozja and Zadnor</Punchline>
-    <Description>Automate fate travel, CE joining, opening chests and fragements, turn in Field notes and MORE!</Description>
+    <Punchline>博兹雅 / 天佑女王：自动刷 FATE、报名紧急遭遇战（含湖岸攻城战开关）</Punchline>
+    <Description>自动赶路、自动报名紧急遭遇战（中文客户端可用）、自动刷 FATE、刷怪、道具鉴定与战记兑换。依赖 vnavmesh 与 Lifestream。</Description>
     <RepoUrl>https://github.com/solenmingco/Botja</RepoUrl>
   </PropertyGroup>
   <ItemGroup>

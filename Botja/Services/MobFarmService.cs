@@ -56,7 +56,7 @@ public sealed class MobFarmService(
     public bool IsRunning { get; private set; }
     public bool IsPausedForCe { get; private set; }
     public MobFarmPhase Phase { get; private set; } = MobFarmPhase.Waiting;
-    public string Status { get; private set; } = "Stopped";
+    public string Status { get; private set; } = "已停止";
     public string CurrentSpotName => spots.Name ?? "Current position";
     public string? CurrentTargetName { get; private set; }
     public int FreeMobCount => freeMobs.Count;
@@ -68,7 +68,7 @@ public sealed class MobFarmService(
     {
         if (!SupportedTerritories.Contains(clientState.TerritoryType))
         {
-            Status = "Mob Farm is available only in Bozja and Zadnor.";
+            Status = "刷怪只能在博兹雅 / 天佑女王使用。";
             return;
         }
 
@@ -82,7 +82,7 @@ public sealed class MobFarmService(
         returningHome = false;
         spots.Begin();
         startPosition = spots.Origin;
-        Status = "Waiting for selected mobs.";
+        Status = "等待选中的怪物刷新。";
         combatControl.SetMobFarmEngaged(false);
         log.Information("[MobFarm] Started in territory {Territory}; spot={Spot}", clientState.TerritoryType, CurrentSpotName);
     }
@@ -105,7 +105,7 @@ public sealed class MobFarmService(
         selfDefense = [];
         freeMobs = [];
         contestedMobs = [];
-        Status = "Stopped";
+        Status = "已停止";
         log.Information("[MobFarm] Stopped");
     }
 
@@ -131,7 +131,7 @@ public sealed class MobFarmService(
         if (objects.LocalPlayer == null)
         {
             combatControl.SetMobFarmEngaged(false);
-            Status = "Waiting for the local player.";
+            Status = "等待角色加载。";
             return;
         }
 
@@ -140,7 +140,7 @@ public sealed class MobFarmService(
             IsPausedForCe = true;
             combatControl.SetMobFarmEngaged(false);
             StopOwnedNavigation();
-            Status = $"Paused during Critical Engagement {activeCeId}.";
+            Status = $"紧急遭遇战 {activeCeId} 进行中，刷怪暂停。";
             return;
         }
 
@@ -151,7 +151,7 @@ public sealed class MobFarmService(
         {
             StopOwnedNavigation();
             ClearMoveRequest();
-            Status = $"Moving to {CurrentSpotName}.";
+            Status = $"正在前往刷怪点 {CurrentSpotName}。";
         }
 
         bool playerInCombat = player.Conditions[ConditionFlag.InCombat] && !fateMobTargetingPlayer;
@@ -210,20 +210,20 @@ public sealed class MobFarmService(
             else
             {
                 RequestWalk("spot", spots.Origin, $"{CurrentSpotName} farm spot");
-                Status = $"Moving to {CurrentSpotName} ({distance:F0} yalms).";
+                Status = $"正在前往刷怪点 {CurrentSpotName}（{distance:F0} 米）。";
                 return;
             }
         }
 
         if (config.MobBaseIds.Count == 0)
         {
-            Status = "Select mob templates in settings to start farming.";
+            Status = "先在设置里选好要刷的怪物模板。";
             return;
         }
 
         if (freeMobs.Count < config.MinimumMobsToStartLoop || freeMobs.Count == 0)
         {
-            Status = $"Waiting at {CurrentSpotName}: {freeMobs.Count} free selected mobs.";
+            Status = $"在 {CurrentSpotName} 等待：当前有 {freeMobs.Count} 只可选怪物。";
             return;
         }
 
@@ -260,7 +260,7 @@ public sealed class MobFarmService(
         IBattleNpc? mob = ResolveBattleNpc(current.ObjectId);
         if (mob == null)
         {
-            Status = $"Reacquiring {current.Name}.";
+            Status = $"重新选中 {current.Name}。";
             return;
         }
 
@@ -287,7 +287,7 @@ public sealed class MobFarmService(
                 .OrderBy(hostile => hostile.DistanceYalms)
                 .First();
             RequestWalk($"mob_{next.ObjectId}", next.Position, $"gather {next.Name}");
-            Status = $"Gathering {selfDefense.Count} / {minimum} mobs; pulling {current.Name}.";
+            Status = $"正在拉怪 {selfDefense.Count} / {minimum}，正在开 {current.Name}。";
             return;
         }
 
@@ -296,7 +296,7 @@ public sealed class MobFarmService(
         else
             ClearMoveRequest();
 
-        Status = $"Gathering mobs: {selfDefense.Count} / {minimum} engaged; {freeMobs.Count} free.";
+        Status = $"拉怪中：已拉 {selfDefense.Count} / {minimum}，剩余可选 {freeMobs.Count}。";
     }
 
     private void UpdateStacking(bool playerInCombat)
@@ -327,7 +327,7 @@ public sealed class MobFarmService(
             {
                 RequestWalk("stack", stackPosition, "stack point");
                 stackingMoveIssued = true;
-                Status = $"Stacking {selfDefense.Count} engaged mobs.";
+                Status = $"聚怪中：{selfDefense.Count} 只。";
                 return;
             }
 
@@ -342,7 +342,7 @@ public sealed class MobFarmService(
             return;
         }
 
-        Status = $"Stacking {selfDefense.Count} engaged mobs.";
+        Status = $"聚怪中：{selfDefense.Count} 只。";
     }
 
     private void UpdateFighting(bool playerInCombat)
@@ -355,7 +355,7 @@ public sealed class MobFarmService(
             if (config.ShouldHandleTargeting)
                 SelectCombatTarget();
             CurrentTargetName = (targets.Target as IBattleNpc)?.Name.ToString();
-            Status = $"Fighting {selfDefense.Count} mobs at {CurrentSpotName}.";
+            Status = $"在 {CurrentSpotName} 打 {selfDefense.Count} 只怪。";
             return;
         }
 
@@ -363,7 +363,7 @@ public sealed class MobFarmService(
         {
             returningHome = false;
             StopOwnedNavigation();
-            Status = "In combat; waiting for nearby mobs to be reacquired.";
+            Status = "战斗中，等待重新选中附近的怪物。";
             return;
         }
 
@@ -384,7 +384,7 @@ public sealed class MobFarmService(
             }
 
             RequestWalk("home", startPosition, "starting spot");
-            Status = "Returning to the starting farm spot.";
+            Status = "正在返回起始刷怪点。";
             return;
         }
 

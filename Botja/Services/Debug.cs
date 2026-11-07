@@ -821,6 +821,19 @@ public partial class FateNavigationService
 {
     // Debug state exposed to FateListWindow.
     public string DebugPhase => phase.ToString();
+
+    // 界面上显示的当前阶段（中文），DebugPhase 保留英文原名供日志/排查对齐。
+    public string DebugPhaseText => phase switch
+    {
+        TeleportPhase.None => "空闲",
+        TeleportPhase.WalkingToSourceShard => "走向以太水晶",
+        TeleportPhase.StoppingAtShard => "在水晶旁停稳",
+        TeleportPhase.WaitingForStart => "等待传送开始",
+        TeleportPhase.WaitingForEnd => "传送中",
+        TeleportPhase.Settling => "传送落地",
+        TeleportPhase.WalkingToDestination => "走向目标",
+        _ => phase.ToString(),
+    };
     public int DebugPhaseTicks => phaseTicks;
     public Vector3 DebugPendingDestination => pendingDestination;
     public string DebugPendingDestinationName => pendingDestinationName;

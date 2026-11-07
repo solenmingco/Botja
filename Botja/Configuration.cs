@@ -166,6 +166,11 @@ public sealed class AutoModeConfig : IAutoConfig
 
     [Checkbox]
     public bool DoFates { get; set; } = true;
+
+    // 湖岸攻城战 / 达尔马斯塔这类 48 人大型攻城战单独一个开关：
+    // 它们不是普通的 8 人 CE，一旦参加就是 20~30 分钟的独立副本，会长时间打断刷 FATE，所以默认关闭。
+    [Checkbox]
+    public bool DoLargeScaleEngagements { get; set; } = false;
 }
 
 public sealed class MobFarmConfig : IAutoConfig

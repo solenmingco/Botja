@@ -37,6 +37,9 @@ public sealed unsafe class CeSignupService(
 
     private const uint LargeScaleEventType = 4;
     private const uint SoloEngagementEnemyType = 3;
+    // 普通紧急遭遇战最多 8 人，湖岸攻城战 / 达尔马斯塔是 48 人。用人数兜底判断大型攻城战，
+    // 这样即使以后 EventType 的语义变了，也不会把 48 人副本当成普通 CE 直接混进去。
+    private const uint LargeScaleMinParticipants = 24;
 
     // The game announces a nearby CE in chat before it shows up in the DynamicEventContainer; treat
     // it as a short-lived hint so Auto Mode can start watching before the container catches up.
@@ -88,7 +91,7 @@ public sealed unsafe class CeSignupService(
     private int commenceRetries;
     private ushort targetEventId;
 
-    public string Status { get; private set; } = "Idle";
+    public string Status { get; private set; } = "空闲";
 
     public bool IsRunning => phase != Phase.Idle;
 
@@ -125,13 +128,13 @@ public sealed unsafe class CeSignupService(
         lastClickAt = DateTime.MinValue;
         clickCount = 0;
         commenceRetries = 0;
-        Status = "Opening Resistance Recruitment.";
+        Status = "正在打开义军招募窗口。";
     }
 
     public void Stop()
     {
         phase = Phase.Idle;
-        Status = "Stopped";
+        Status = "已停止";
     }
 
     public void Update()
@@ -143,13 +146,21 @@ public sealed unsafe class CeSignupService(
 
         if (objects.LocalPlayer?.IsDead == true)
         {
-            StopWithStatus("Paused: player is dead.");
+            StopWithStatus("已暂停：角色已阵亡。");
             return;
         }
 
         if (DateTime.UtcNow - startedAt > AttemptTimeout)
         {
-            StopWithStatus("Stopped: CE signup timed out.");
+            StopWithStatus("已停止：报名超时。");
+            return;
+        }
+
+        // 中途把「参加湖岸攻城战」关掉、或把这个 CE 拉进忽略名单时，立刻放弃当前目标，
+        // 而不是继续把已经排上的报名点完。
+        if (targetEventId != 0 && IsExcludedEvent(targetEventId))
+        {
+            StopWithStatus("已停止：当前 CE 已被排除（大型攻城战开关或忽略名单）。");
             return;
         }
 
@@ -173,7 +184,7 @@ public sealed unsafe class CeSignupService(
     {
         if (targetEventId == 0 && !TryFindRecruitingEvent(out targetEventId, includeWarmup: true))
         {
-            Status = "Waiting for a joinable CE (non-solo, non-large-scale).";
+            Status = "等待可报名的 CE（单人决斗、未开启的大型攻城战不计）。";
             return;
         }
 
@@ -181,7 +192,7 @@ public sealed unsafe class CeSignupService(
         if (TryGetCurrentEventId(out var currentEventId) && currentEventId == targetEventId)
         {
             LastCommencedEventId = currentEventId;
-            StopWithStatus("Already inside the CE.");
+            StopWithStatus("已经在 CE 内。");
             return;
         }
 
@@ -189,19 +200,19 @@ public sealed unsafe class CeSignupService(
         if (state.Phase is CePhase.Unavailable or CePhase.Underway)
         {
             targetEventId = 0;
-            Status = "CE is no longer joinable; looking for another.";
+            Status = "这个 CE 已经不能报名，换下一个。";
             return;
         }
 
         if (!guiInteract.EnsureCeRecruitmentWindowOpen())
         {
-            Status = "Waiting for the recruitment window.";
+            Status = "等待招募窗口打开。";
             return;
         }
 
         if (state.Phase == CePhase.Commencing)
         {
-            Advance(Phase.WaitingForCommence, "CE warmup already started; waiting for the deployment timer.");
+            Advance(Phase.WaitingForCommence, "CE 已进入准备阶段，等待出击计时。");
             return;
         }
 
@@ -214,20 +225,20 @@ public sealed unsafe class CeSignupService(
 
             if (clickCount > MaxClicks)
             {
-                StopWithStatus("Stopped: the recruitment window keeps accepting clicks without registering — copy the CE dump from the debug pane.");
+                StopWithStatus("已停止：招募窗口点了没反应、也没报上名，去调试页复制 CE 数据看看。");
                 return;
             }
 
             // Bozja registration normally completes silently; there is no confirmation dialog on
             // most clients. Answer one if it appears (handled in WaitingForCommence) but do not
             // block on it, which is what left the old flow stuck here forever.
-            Advance(Phase.WaitingForCommence, "Registration requested; waiting for the CE timer.");
+            Advance(Phase.WaitingForCommence, "已发出报名，等待 CE 计时。");
         }
         else
         {
             LastAction = detail;
             log.Debug("[CE] could not click register for #{Id}: {Detail}", targetEventId, detail);
-            Status = "Waiting for the recruitment window.";
+            Status = "等待招募窗口打开。";
         }
     }
 
@@ -242,26 +253,26 @@ public sealed unsafe class CeSignupService(
         if (state.Phase == CePhase.Underway)
         {
             LastCommencedEventId = targetEventId;
-            StopWithStatus("CE commenced.");
+            StopWithStatus("CE 已开始。");
             return;
         }
 
         if (state.Phase == CePhase.Unavailable)
         {
-            StopWithStatus("Stopped: CE deployment is no longer available.");
+            StopWithStatus("已停止：CE 出击阶段已结束。");
             return;
         }
 
         Status = state.Phase == CePhase.Registering
-            ? $"Registered; waiting for selection ({state.SecondsLeft}s)."
-            : $"Registered; waiting for deployment ({state.SecondsLeft}s).";
+            ? $"已报名，等待抽选（{state.SecondsLeft} 秒）。"
+            : $"已报名，等待出击（{state.SecondsLeft} 秒）。";
 
         if (!ShouldCommenceNow(state, autoModeState.IsEngagedInFate))
             return;
 
         if (!guiInteract.EnsureCeRecruitmentWindowOpen())
         {
-            Status = "Registered; waiting for the recruitment window.";
+            Status = "已报名，等待招募窗口重新打开。";
             return;
         }
 
@@ -270,7 +281,7 @@ public sealed unsafe class CeSignupService(
             LastAction = detail;
             lastClickAt = DateTime.UtcNow;
             log.Debug("[CE] commence #{Id}: {Detail}", targetEventId, detail);
-            Advance(Phase.ConfirmingCommence, "Commence requested; waiting for confirmation.");
+            Advance(Phase.ConfirmingCommence, "已请求出击，等待确认。");
             return;
         }
 
@@ -282,7 +293,7 @@ public sealed unsafe class CeSignupService(
             lastClickAt = DateTime.UtcNow;
             clickCount++;
             log.Debug("[CE] register (fallback) #{Id}: {Detail}", targetEventId, detail);
-            Advance(Phase.WaitingForCommence, "Registration requested; waiting for the CE timer.");
+            Advance(Phase.WaitingForCommence, "已发出报名，等待 CE 计时。");
             return;
         }
 
@@ -293,7 +304,7 @@ public sealed unsafe class CeSignupService(
         if (state.Phase == CePhase.Commencing && state.SecondsLeft is > 0 and <= 3)
         {
             LastCommencedEventId = targetEventId;
-            StopWithStatus("CE starting; expecting the game to warp us in.");
+            StopWithStatus("CE 即将开始，等待游戏自动传送。");
             return;
         }
 
@@ -305,7 +316,7 @@ public sealed unsafe class CeSignupService(
         if (guiInteract.ClickSelectYesnoYes())
         {
             LastCommencedEventId = targetEventId;
-            StopWithStatus("Commence confirmed.");
+            StopWithStatus("出击已确认。");
             return;
         }
 
@@ -313,20 +324,20 @@ public sealed unsafe class CeSignupService(
         if (state.Phase == CePhase.Underway)
         {
             LastCommencedEventId = targetEventId;
-            StopWithStatus("CE commenced.");
+            StopWithStatus("CE 已开始。");
             return;
         }
 
         if (state.Phase == CePhase.Unavailable)
         {
-            StopWithStatus("Stopped: CE deployment is no longer available.");
+            StopWithStatus("已停止：CE 出击阶段已结束。");
             return;
         }
 
         if (state.Phase == CePhase.Commencing && state.SecondsLeft is > 0 and <= 1)
         {
             LastCommencedEventId = targetEventId;
-            StopWithStatus("CE starting; expecting the game to warp us in.");
+            StopWithStatus("CE 即将开始，等待游戏自动传送。");
             return;
         }
 
@@ -335,11 +346,11 @@ public sealed unsafe class CeSignupService(
         commenceRetries++;
         if (commenceRetries > MaxCommenceRetries)
         {
-            StopWithStatus("Stopped: the deployment click is not taking effect — copy the CE dump from the debug pane.");
+            StopWithStatus("已停止：出击按钮点了没反应，去调试页复制 CE 数据看看。");
             return;
         }
 
-        Advance(Phase.WaitingForCommence, $"Registered; waiting for deployment ({state.SecondsLeft}s).");
+        Advance(Phase.WaitingForCommence, $"已报名，等待出击（{state.SecondsLeft} 秒）。");
     }
 
     /// <summary>
@@ -512,10 +523,29 @@ public sealed unsafe class CeSignupService(
         if (dynamicEvent is not { } row)
             return false;
 
-        return row.EventType.RowId == LargeScaleEventType ||
-               row.EnemyType.RowId == SoloEngagementEnemyType ||
-               row.MaxParticipants == 1 ||
-               pluginConfig.Blacklist.CeEventIds.Contains(eventId);
+        if (pluginConfig.Blacklist.CeEventIds.Contains(eventId))
+            return true;
+
+        // 单人决斗一律不参加——报名进去只会白给。
+        if (row.EnemyType.RowId == SoloEngagementEnemyType || row.MaxParticipants == 1)
+            return true;
+
+        // 湖岸攻城战 / 达尔马斯塔这类大型攻城战由独立开关控制（默认关闭）。
+        if (IsLargeScale(row))
+            return !pluginConfig.AutoMode.DoLargeScaleEngagements;
+
+        return false;
+    }
+
+    /// <summary>48 人大型攻城战（湖岸攻城战 / 达尔马斯塔）——独立开关控制，默认不参加。</summary>
+    public static bool IsLargeScale(LuminaDynamicEvent row) =>
+        row.EventType.RowId == LargeScaleEventType || row.MaxParticipants >= LargeScaleMinParticipants;
+
+    /// <summary>供界面使用：这个 CE 是不是大型攻城战。</summary>
+    public bool IsLargeScaleEvent(ushort eventId)
+    {
+        var row = data.GetExcelSheet<LuminaDynamicEvent>()?.GetRowOrDefault(eventId);
+        return row is { } r && IsLargeScale(r);
     }
 
     // eventId here is the DynamicEvent row ID (the CE's template/type ID, stable across every

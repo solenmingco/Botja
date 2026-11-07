@@ -58,10 +58,10 @@ public class FieldNoteExchangeOverlayWindow(GuiInteractionService guiInteract, I
 
     protected override void Render()
     {
-        if (ImGui.Button("Start field note exchange"))
+        if (ImGui.Button("开始兑换战记"))
             guiInteract.StartGenericListAutomation("SkyIslandExchange2", 13);
         ImGui.SameLine();
-        if (ImGui.Button("Stop field note exchange"))
+        if (ImGui.Button("停止兑换战记"))
             guiInteract.StopGenericListAutomation();
         ImGui.TextWrapped(guiInteract.GenericListAutomationStatus);
     }

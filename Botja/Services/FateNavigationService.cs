@@ -65,8 +65,14 @@ public partial class FateNavigationService(
     // From BOCCHI NavigationConstants
     private const float MaxDirectWalkDistance = 80f;
     private const float EventArrivalRadius = 10f;
-    private const float ShardInteractRadius = 2f;
-    // Wider than ShardInteractRadius — matches BOCCHI's IsAlreadyAtAetheryte arrivedRadius
+    // 以太水晶本体是实体，有碰撞体积 —— vnavmesh 走不进圆心，直接把圆心当目标的结果就是
+    // 人物贴着水晶一直往前挤（表现就是「选不中水晶、人还在往前跑」，最后超时放弃改成硬走）。
+    // 所以真正下发的目标改成圆心外侧的一个站位点，判定到没到则用「离圆心多远」。
+    private const float ShardStandOffRadius = 3.5f;   // 站位点到水晶圆心的水平距离
+    private const float ShardApproachRadius = 6f;     // 判定「已经在水晶旁、可以开始传送」的半径
+    private const float ShardWalkTargetRadius = 1.5f; // 下发给 vnavmesh 的到达半径（走不到也不影响判定）
+    private const long ShardSettleMs = 350;           // 到站后先彻底停稳再喊 Lifestream，避免边走边点
+    // Wider than ShardApproachRadius — matches BOCCHI's IsAlreadyAtAetheryte arrivedRadius
     // (post-TP landings and menu-open range are often several yards from the crystal).
     private const float ArrivedAtAetheryteRadius = 12f;
     // These are wall-clock durations (ms), NOT frame counts — Update() is not guaranteed to run at
@@ -100,7 +106,9 @@ public partial class FateNavigationService(
     // proof it actually happened. Aethernet shards in Bozja are always much further apart than this.
     private const float TeleportJumpThreshold = 15f;
 
-    private enum TeleportPhase { None, WalkingToSourceShard, WaitingForStart, WaitingForEnd, Settling, WalkingToDestination }
+    // StoppingAtShard: 已经走到水晶旁，先彻底停下再发起传送。边走边点水晶是点不中的
+    // （Lifestream 要开水晶菜单，人物还在滑行/被 vnav 推着走就失败），这是「选不中水晶」的直接原因。
+    private enum TeleportPhase { None, WalkingToSourceShard, StoppingAtShard, WaitingForStart, WaitingForEnd, Settling, WalkingToDestination }
 
     private static readonly Color ShardPathColor = new(0.3f, 0.6f, 1f); // blue — walking to source shard
     private static readonly Color TeleportWaitColor = new(1f, 0.8f, 0.1f); // yellow — teleport in progress
@@ -212,7 +220,9 @@ public partial class FateNavigationService(
     private Vector3 pendingDestination;
     private string pendingDestinationName = string.Empty;
     private Vector3 pendingSourceShardPos;
+    private Vector3 pendingSourceShardStandOffPos;
     private Vector3 pendingDestShardPos;
+    private long shardSettledAtMs;
     private Vector3 pendingPreTeleportPos;
     private int phaseTicks; // diagnostic Update() call counter only — NOT a reliable time unit, see timeouts above
     private long phaseStartMs;
@@ -301,10 +311,9 @@ public partial class FateNavigationService(
             return;
         }
 
-        // Must match Lifestream's own real interact/detection range (ShardInteractRadius), not the
-        // looser ArrivedAtAetheryteRadius — firing the teleport from further out than Lifestream can
-        // actually detect an active (custom) aetheryte from causes "Destination could not be found (3)".
-        bool alreadyNearShard = FindNearestShardStruct(playerPos.Value) is { } nearShard && Dist2D(playerPos.Value, nearShard.Position) <= ShardInteractRadius;
+        // 用「离水晶多远」而不是「离站位点多远」判断是否已经在水晶旁：
+        // 从比 ShardApproachRadius 更远处喊传送，Lifestream 会直接拒绝（Destination could not be found (3)）。
+        bool alreadyNearShard = FindNearestShardStruct(playerPos.Value) is { } nearShard && Dist2D(playerPos.Value, nearShard.Position) <= ShardApproachRadius;
         AethernetShard? sourceShard = alreadyNearShard ? null : FindNearestShardStruct(playerPos.Value);
 
         float walkToSourceDist = alreadyNearShard ? 0f : sourceShard?.Position is { } sourcePos ? Dist2D(playerPos.Value, sourcePos) : float.MaxValue;
@@ -350,7 +359,7 @@ public partial class FateNavigationService(
         if (destShard == null)
             return directDist / EstimatedMoveSpeed;
 
-        bool alreadyNearShard = FindNearestShardStruct(playerPos) is { } nearShard && Dist2D(playerPos, nearShard.Position) <= ShardInteractRadius;
+        bool alreadyNearShard = FindNearestShardStruct(playerPos) is { } nearShard && Dist2D(playerPos, nearShard.Position) <= ShardApproachRadius;
         AethernetShard? sourceShard = alreadyNearShard ? null : FindNearestShardStruct(playerPos);
 
         float walkToSourceDist = alreadyNearShard ? 0f : sourceShard?.Position is { } sourcePos ? Dist2D(playerPos, sourcePos) : float.MaxValue;
@@ -370,8 +379,12 @@ public partial class FateNavigationService(
         // Store the snapped (on-mesh) position, not the raw dict value — a stale/bad stored Y
         // otherwise leaves both the arrival check and the overlay circle pointing underground.
         Vector3 snappedShardPos = SnapToMesh(shardPos);
+        // 水晶本体带碰撞，圆心里站不进去：真正下发给 vnavmesh 的目标是圆心外侧的站位点，
+        // 圆心只用于「到没到」的判定（见 Update 里的 WalkingToSourceShard）。
+        Vector3 standOffPos = ComputeShardStandOffPosition(snappedShardPos);
         pendingDestination = finalDestination;
         pendingSourceShardPos = snappedShardPos;
+        pendingSourceShardStandOffPos = standOffPos;
         phase = TeleportPhase.WalkingToSourceShard;
         phaseTicks = 0;
         phaseStartMs = NowMs();
@@ -380,13 +393,26 @@ public partial class FateNavigationService(
         float shardDist = objects.LocalPlayer is { } p ? Dist2D(p.Position, snappedShardPos) : 0f;
         shardWalkTimeoutMs = Math.Max(WalkToShardTimeoutMs, (long)(shardDist / MinShardWalkSpeedYalms * 1000) + WalkToShardTimeoutBufferMs);
 
-        TryMount(snappedShardPos);
-        log.Debug("[FateNav] WalkToShardThenAethernet: walking to shard {ShardPos} (raw {RawShardPos}, dist {Dist:F1}, timeout {Timeout}ms), phase -> WalkingToSourceShard", snappedShardPos, shardPos, shardDist, shardWalkTimeoutMs);
+        TryMount(standOffPos);
+        log.Debug("[FateNav] WalkToShardThenAethernet: walking to shard {ShardPos} via stand-off point {StandOff} (raw {RawShardPos}, dist {Dist:F1}, timeout {Timeout}ms), phase -> WalkingToSourceShard", snappedShardPos, standOffPos, shardPos, shardDist, shardWalkTimeoutMs);
         // Goes through avoidance first — a direct unconditional StartMove here would aim the very
         // first movement command of the journey straight at the raw shard position, bypassing
         // obstacle-awareness for that one command (avoidance would only take over on the NEXT tick).
-        if (!UpdateHostileAvoidance(snappedShardPos, ShardInteractRadius))
-            StartMove(snappedShardPos, ShardInteractRadius);
+        if (!UpdateHostileAvoidance(standOffPos, ShardApproachRadius))
+            StartMove(standOffPos, ShardWalkTargetRadius);
+    }
+
+    // 从水晶圆心朝玩家所在方向外推 ShardStandOffRadius，得到一个能真正站住、又能被游戏判定
+    // 「就在水晶旁边」的位置。玩家正好站在圆心时退化成 +X 方向，避免除零。
+    private Vector3 ComputeShardStandOffPosition(Vector3 crystal)
+    {
+        Vector3 origin = objects.LocalPlayer?.Position ?? crystal;
+        Vector3 dir = new(origin.X - crystal.X, 0f, origin.Z - crystal.Z);
+        if (dir.LengthSquared() < 0.25f)
+            dir = new Vector3(1f, 0f, 0f);
+
+        dir = Vector3.Normalize(dir);
+        return new Vector3(crystal.X + dir.X * ShardStandOffRadius, crystal.Y, crystal.Z + dir.Z * ShardStandOffRadius);
     }
 
     // Walk directly, ignoring aethernet (walk button).
@@ -1074,16 +1100,22 @@ public partial class FateNavigationService(
 
         if (phase == TeleportPhase.WalkingToSourceShard)
         {
-            TryMount(pendingSourceShardPos);
+            TryMount(pendingSourceShardStandOffPos);
 
-            if (UpdateHostileAvoidance(pendingSourceShardPos, ShardInteractRadius))
+            if (UpdateHostileAvoidance(pendingSourceShardStandOffPos, ShardApproachRadius))
                 return;
 
-            bool arrived = objects.LocalPlayer is { } player && Dist2D(player.Position, pendingSourceShardPos) <= ShardInteractRadius;
+            bool arrived = objects.LocalPlayer is { } player && Dist2D(player.Position, pendingSourceShardPos) <= ShardApproachRadius;
             if (arrived)
             {
-                log.Debug("[FateNav] Update: WalkingToSourceShard done after {Ticks} ticks, continuing via aethernet", phaseTicks);
-                PathViaAethernet(pendingDestination);
+                // 到了就先停：vnav 的 Stop 只发一次，之后由 StoppingAtShard 等人物真正停稳，
+                // 再交给 Lifestream —— 这是「选不中水晶」的修法。
+                log.Debug("[FateNav] Update: WalkingToSourceShard done after {Ticks} ticks, stopping before teleport", phaseTicks);
+                SafeStopVnav();
+                phase = TeleportPhase.StoppingAtShard;
+                phaseTicks = 0;
+                shardSettledAtMs = NowMs();
+                return;
             }
             else if (PhaseElapsedMs > shardWalkTimeoutMs)
             {
@@ -1103,9 +1135,31 @@ public partial class FateNavigationService(
                 else
                 {
                     log.Debug("[FateNav] Update: WalkingToSourceShard stalled (vnav idle) after {Ticks} ticks, re-issuing move to {ShardPos} ({Retry}/{Max})", phaseTicks, pendingSourceShardPos, movementStallRetries, MaxMovementStallRetries);
-                    StartMove(pendingSourceShardPos, ShardInteractRadius);
+                    StartMove(pendingSourceShardStandOffPos, ShardWalkTargetRadius);
                 }
             }
+            return;
+        }
+        else if (phase == TeleportPhase.StoppingAtShard)
+        {
+            if (objects.LocalPlayer is not { } stopping) return;
+
+            // 被怪推走/滑出水晶范围就重新靠近，别在原地对着空气点。
+            if (Dist2D(stopping.Position, pendingSourceShardPos) > ShardApproachRadius * 1.5f)
+            {
+                log.Debug("[FateNav] Update: drifted away from shard while stopping, walking back");
+                WalkToShardThenAethernet(pendingSourceShardPos, pendingDestination);
+                return;
+            }
+
+            bool stillMoving = SafeIsRunning() || SafeIsPathfinding();
+            long waitedMs = NowMs() - shardSettledAtMs;
+            if ((!stillMoving && waitedMs >= ShardSettleMs) || waitedMs > 5_000)
+            {
+                log.Debug("[FateNav] Update: settled next to shard after {Ticks} ticks ({WaitedMs}ms, moving={Moving}), requesting aethernet teleport", phaseTicks, waitedMs, stillMoving);
+                PathViaAethernet(pendingDestination);
+            }
+
             return;
         }
         else if (phase == TeleportPhase.WaitingForStart)
@@ -1243,6 +1297,16 @@ public partial class FateNavigationService(
         teleportFailFastRetries++;
         if (teleportFailFastRetries <= MaxTeleportFailFastRetries)
         {
+            // 被击退或被 vnav 带偏到水晶范围外时，直接重发传送一定还是失败 —— 先走回最近的水晶。
+            Vector3? playerPos = objects.LocalPlayer?.Position;
+            AethernetShard? nearShard = playerPos is { } pos ? FindNearestShardStruct(pos) : null;
+            if (playerPos is { } p && nearShard is { } shard && Dist2D(p, shard.Position) > ShardApproachRadius)
+            {
+                log.Debug("[FateNav] {Reason}; not near shard {PlaceNameId} ({Dist:F1}y) — walking back to it ({Retry}/{Max})", reason, shard.PlaceNameId, Dist2D(p, shard.Position), teleportFailFastRetries, MaxTeleportFailFastRetries);
+                WalkToShardThenAethernet(shard.Position, destination);
+                return;
+            }
+
             log.Debug("[FateNav] {Reason}, retrying aethernet hop ({Retry}/{Max})", reason, teleportFailFastRetries, MaxTeleportFailFastRetries);
             PathViaAethernet(destination, isRetry: true);
         }
@@ -1367,8 +1431,11 @@ public partial class FateNavigationService(
         switch (phase)
         {
             case TeleportPhase.WalkingToSourceShard:
-                overlay.StrokeLine(from, pendingSourceShardPos, ShardPathColor);
-                overlay.StrokeCircle(pendingSourceShardPos, ShardInteractRadius, ShardPathColor);
+                overlay.StrokeLine(from, pendingSourceShardStandOffPos, ShardPathColor);
+                overlay.StrokeCircle(pendingSourceShardPos, ShardApproachRadius, ShardPathColor);
+                break;
+            case TeleportPhase.StoppingAtShard:
+                overlay.StrokeCircle(pendingSourceShardPos, ShardApproachRadius, TeleportWaitColor);
                 break;
             case TeleportPhase.WaitingForStart:
             case TeleportPhase.WaitingForEnd:

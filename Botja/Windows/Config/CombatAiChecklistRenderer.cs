@@ -45,11 +45,11 @@ public sealed class CombatAiChecklistRenderer(
 
         if (available.Length == 0)
         {
-            ImGui.TextUnformatted("No combat AIs are registered.");
+            ImGui.TextUnformatted("没有注册任何战斗循环插件。");
             return false;
         }
 
-        ImGui.TextUnformatted("Combat AIs enabled inside FATEs / CEs:");
+        ImGui.TextUnformatted("在 FATE / CE 中启用的战斗循环：");
         var changed = false;
         foreach (var backend in available)
         {

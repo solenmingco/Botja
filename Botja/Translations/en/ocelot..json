@@ -1,168 +1,244 @@
 {
   "config": {
     "navigation": {
-      "label": "Navigation",
+      "label": "移动与导航",
       "fields": {
         "mount_range": {
-          "label": "Mount when travel distance exceeds"
+          "label": "距离超过多少米时上坐骑",
+          "tooltip": "剩余路程超过这个距离才会自动召唤坐骑，太近就直接跑过去。"
         }
       }
     },
     "fate_priority": {
-      "label": "FATE priority",
+      "label": "FATE 优先级",
       "fields": {
         "progress_weight": {
-          "label": "FATE progress importance"
+          "label": "FATE 进度权重",
+          "tooltip": "权重越高越优先选已经推进得多的 FATE。"
         },
         "time_remaining_weight": {
-          "label": "Time remaining importance"
+          "label": "剩余时间权重",
+          "tooltip": "剩余时间越短分数越高，越优先赶过去。"
         },
         "travel_time_weight": {
-          "label": "Travel time importance"
+          "label": "路程时间权重",
+          "tooltip": "路程越远扣分越多，建议保持负值。"
         },
         "progress_rate_weight": {
-          "label": "Progress rate importance"
+          "label": "进度增长权重"
         },
         "preferred_sector": {
-          "label": "Preferred sector"
+          "label": "偏好区域"
         },
         "limit_to_preferred_sector": {
-          "label": "Limit FATEs to this sector only"
+          "label": "只在偏好区域内选 FATE"
         },
         "preferred_sector_weight": {
-          "label": "Preferred sector importance"
+          "label": "偏好区域权重"
+        },
+        "max_progress_percent": {
+          "label": "进度超过该值后不再前往",
+          "tooltip": "进度已经这么高的 FATE 基本打完了，再跑过去拿不到战果。"
         }
       }
     },
     "item_inspection": {
-      "label": "Fragment Automation",
+      "label": "道具鉴定自动化",
       "fields": {
         "skip_item_ids": {
-          "label": "Items skipped by automation"
+          "label": "自动鉴定时跳过的物品"
         }
       }
     },
     "combat": {
-      "label": "Combat automation",
+      "label": "战斗自动化",
       "fields": {
         "auto_control_enabled": {
-          "label": "Automatically control combat rotation"
+          "label": "自动开关战斗循环",
+          "tooltip": "赶路时关闭、真正开打时开启；需要先在下面选中要控制的战斗循环插件。"
+        },
+        "selected_ais": {
+          "label": "要控制的战斗循环"
+        },
+        "selected_boss_mod_profiles": {
+          "label": "BossMod 预设"
         }
       }
     },
     "auto_mode": {
-      "label": "Auto Mode",
+      "label": "自动模式",
       "fields": {
         "do_critical_engagements": {
-          "label": "Do Critical Engagements"
+          "label": "自动参加紧急遭遇战（CE）",
+          "tooltip": "边刷 FATE 边在后台报名正在招募的紧急遭遇战。"
         },
         "do_fates": {
-          "label": "Do FATEs"
+          "label": "自动刷 FATE"
+        },
+        "do_large_scale_engagements": {
+          "label": "参加湖岸攻城战（大型攻城战）",
+          "tooltip": "湖岸攻城战 / 达尔马斯塔最高 48 人、单场约 20~30 分钟，会长时间打断刷 FATE，所以单独一个开关，默认关闭。"
         }
       }
     },
     "mob_farm": {
-      "label": "Mob Farm",
+      "label": "刷怪",
       "fields": {
         "mob_base_ids": {
-          "label": "Mob templates to farm"
+          "label": "要刷的怪物模板"
         },
         "should_handle_targeting": {
-          "label": "Automatically target mobs"
+          "label": "自动选中目标"
         },
         "force_target_central_enemy": {
-          "label": "Prefer the mob nearest the pack center"
+          "label": "优先选怪群中心最近的目标"
         },
         "max_mob_distance_yalms": {
-          "label": "Maximum mob distance"
+          "label": "最远怪物距离"
         },
         "spots": {
-          "label": "Farm spots"
+          "label": "刷怪点"
         },
         "claimed_spot_seconds": {
-          "label": "Seconds before a contested spot is abandoned"
+          "label": "刷怪点被占用多久后放弃"
         },
         "claimed_player_radius_yalms": {
-          "label": "Other-player spot radius"
+          "label": "其他玩家占用判定半径"
         },
         "minimum_mobs_to_start_loop": {
-          "label": "Free mobs required to start gathering"
+          "label": "开始拉怪所需的空闲怪数量"
         },
         "minimum_mobs_to_start_fight": {
-          "label": "Engaged mobs required to start fighting"
+          "label": "开始输出所需的已拉怪数量"
         },
         "stacking_timeout_seconds": {
-          "label": "Gathering timeout before stacking"
+          "label": "拉怪超时（超时后直接开打）"
         },
         "use_ranged_pull": {
-          "label": "Use a tank ranged pull"
+          "label": "用坦克远程技能开怪"
         },
         "use_provoke": {
-          "label": "Use Provoke as a tank pull"
+          "label": "用挑衅开怪"
         },
         "use_gap_closer": {
-          "label": "Use a tank gap closer"
+          "label": "用突进技能开怪"
         },
         "return_to_start_in_waiting_phase": {
-          "label": "Return to the farm spot after fighting"
+          "label": "打完后回到刷怪点"
         },
         "min_distance_to_return_home_yalms": {
-          "label": "Minimum distance before returning"
+          "label": "离刷怪点多远才回去"
         },
         "render_debug_lines": {
-          "label": "Draw farm debug lines"
+          "label": "绘制刷怪调试线"
         }
       }
     },
     "blacklist": {
-      "label": "Ignore list",
+      "label": "忽略名单",
       "fields": {
         "fate_ids": {
-          "label": "FATEs to ignore"
+          "label": "忽略的 FATE"
         },
         "ce_event_ids": {
-          "label": "Critical engagements to ignore"
+          "label": "忽略的紧急遭遇战"
+        }
+      }
+    },
+    "follow": {
+      "label": "连锁 FATE 等待",
+      "fields": {
+        "fate_ids": {
+          "label": "打完要原地等后续的 FATE",
+          "tooltip": "这些 FATE 打完后会在同一地点刷出后续 FATE，打完先别走。"
+        },
+        "wait_seconds": {
+          "label": "原地等待秒数"
+        },
+        "radius_yalms": {
+          "label": "后续 FATE 判定半径"
+        }
+      }
+    },
+    "hostile_detection": {
+      "label": "敌对 NPC 规避",
+      "fields": {
+        "detection_radius_yalms": {
+          "label": "敌对 NPC 检测半径"
+        },
+        "enable_navmesh_avoidance": {
+          "label": "绕开挡路的敌对 NPC",
+          "tooltip": "绕开会拉到怪物仇恨的区域，代价是路线变长。"
+        },
+        "sound_aggro_range_yalms": {
+          "label": "声音型怪物仇恨半径",
+          "tooltip": "这类怪物不看朝向，靠得太近就会立刻被发现。"
+        },
+        "avoidance_safety_margin_yalms": {
+          "label": "规避安全余量",
+          "tooltip": "在每个仇恨范围外额外留出的缓冲，抵消怪物巡逻和转身带来的误差。"
+        },
+        "avoidance_personal_space_yalms": {
+          "label": "贴身距离",
+          "tooltip": "无论朝向如何，都不会贴到离怪物这么近的位置。"
+        },
+        "avoidance_comfort_distance_yalms": {
+          "label": "舒适绕行距离",
+          "tooltip": "绕路代价不高时，路线会额外远离怪物这么多米。"
         }
       }
     }
   },
   "generic": {
-    "none": "None"
+    "none": "无",
+    "start": "开始",
+    "stop": "停止",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "toggle": "切换",
+    "toggle_config_window": "开关设置窗口",
+    "emergency_stop": "紧急停止",
+    "yes": "是",
+    "no": "否",
+    "state": "状态"
   },
   "windows": {
     "config": {
-      "title": "Botja settings"
+      "title": "博兹雅助手 设置"
+    },
+    "main": {
+      "title": "博兹雅助手"
     },
     "fate_list": {
-      "stop_movement": "Stop movement",
-      "settings": "Settings",
-      "auto_navigate_top_fate": "Auto-navigate to the top-priority FATE",
-      "item_inspection": "Item inspection:",
-      "start_item_inspection": "Start item inspection",
-      "stop_item_inspection": "Stop item inspection",
-      "stop_ce_signup": "Stop CE signup",
-      "join_recruiting_ce": "Join recruiting CE",
-      "recruiting_ce": "Recruiting CE: {name} (ID {id})",
-      "blacklist_ce": "Blacklist this CE",
-      "blacklist_ce_tooltip": "Never auto-join this CE again",
-      "stop_auto_mode": "Stop Auto Mode",
-      "start_auto_mode": "Start Auto Mode",
-      "auto_mode_tooltip": "Continuously travel to and fight the next FATE, joining recruiting CEs first",
-      "start_mob_farm": "Start Mob Farm",
-      "stop_mob_farm": "Stop Mob Farm",
-      "mob_farm_tooltip": "Farm selected nearby Bozja/Zadnor mobs at configured spots",
-      "going_to_fate": "Going to FATE: {name}",
-      "no_active_fates": "No active FATEs in this area.",
-      "table_name": "Name",
+      "stop_movement": "停止移动",
+      "settings": "设置",
+      "auto_navigate_top_fate": "自动前往优先级最高的 FATE",
+      "item_inspection": "道具鉴定：",
+      "start_item_inspection": "开始道具鉴定",
+      "stop_item_inspection": "停止道具鉴定",
+      "stop_ce_signup": "停止报名紧急遭遇战",
+      "join_recruiting_ce": "报名正在招募的紧急遭遇战",
+      "recruiting_ce": "正在招募：{name}（ID {id}）",
+      "blacklist_ce": "加入忽略名单",
+      "blacklist_ce_tooltip": "以后不再自动报名这个 CE",
+      "stop_auto_mode": "停止自动模式",
+      "start_auto_mode": "启动自动模式",
+      "auto_mode_tooltip": "自动跑图打下一个 FATE，遇到招募中的 CE 先报名",
+      "start_mob_farm": "开始刷怪",
+      "stop_mob_farm": "停止刷怪",
+      "mob_farm_tooltip": "在设定好的刷怪点自动刷选中的怪物",
+      "going_to_fate": "前往 FATE：{name}",
+      "no_active_fates": "当前区域没有进行中的 FATE。",
+      "table_name": "名称",
       "table_id": "ID",
-      "table_sector": "Sector",
-      "table_progress": "Progress",
-      "table_time": "Time",
-      "table_eta": "ETA",
-      "table_go": "Go",
-      "walk_to_fate": "Walk to {name}",
-      "auto_navigate_fate": "Auto-navigate to {name} (return, teleport, walk)",
-      "blacklist_fate": "Never auto-navigate to {name} again"
+      "table_sector": "区域",
+      "table_progress": "进度",
+      "table_time": "剩余",
+      "table_eta": "预计",
+      "table_go": "前往",
+      "walk_to_fate": "步行前往 {name}",
+      "auto_navigate_fate": "自动前往 {name}（传送 → 步行）",
+      "blacklist_fate": "自动导航时忽略 {name}"
     }
   }
 }
