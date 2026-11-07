@@ -76,7 +76,6 @@ public sealed class MountSelectRenderer(IServiceProvider services, IDataManager 
                         prop.SetValue(target, entry.Id);
                         value = entry.Id;
                         changed = true;
-                        ImGui.CloseCurrentPopup();
                         break;
                     }
 
