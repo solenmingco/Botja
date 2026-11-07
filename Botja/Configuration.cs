@@ -12,6 +12,8 @@ public interface IPluginConfig
 {
     NavigationConfig Navigation { get; }
 
+    MountConfig Mount { get; }
+
     FatePriorityConfig FatePriority { get; }
 
     ItemInspectionConfig ItemInspection { get; }
@@ -31,9 +33,12 @@ public interface IPluginConfig
 
 public sealed class PluginConfig : IPluginConfig, IPluginConfiguration
 {
+    // 1 = 坐骑设置从 NavigationConfig 拆到独立的 MountConfig。
     public int Version { get; set; } = 0;
 
     public NavigationConfig Navigation { get; set; } = new();
+
+    public MountConfig Mount { get; set; } = new();
 
     public FatePriorityConfig FatePriority { get; set; } = new();
 
@@ -54,6 +59,7 @@ public sealed class PluginConfig : IPluginConfig, IPluginConfiguration
     public void HydrateMissingSections()
     {
         Navigation ??= new();
+        Mount ??= new();
         FatePriority ??= new();
         ItemInspection ??= new();
         Combat ??= new();
@@ -70,6 +76,19 @@ public sealed class PluginConfig : IPluginConfig, IPluginConfiguration
         Follow.FateIds ??= [];
         MobFarm.MobBaseIds ??= [];
         MobFarm.Spots ??= [];
+    }
+
+    // 老版本把「多远才上坐骑」放在移动与导航分页里，拆出坐骑分页后没做过迁移的配置会
+    // 悄悄退回默认值 —— 这里只在真正是老配置（Version < 1）时搬一次。
+    public void Migrate()
+    {
+        if (Version >= 1)
+            return;
+
+        if (Navigation.MountRange > 0f)
+            Mount.MountRange = Navigation.MountRange;
+
+        Version = 1;
     }
 }
 
@@ -109,11 +128,27 @@ public sealed class FatePriorityConfig : IAutoConfig
     public float MaxProgressPercent { get; set; } = 100f;
 }
 
+// 坐骑相关设置已经从「移动与导航」搬到独立的 MountConfig，这个分页不再显示给用户，
+// 只保留在配置里让 PluginConfig.Migrate() 能把老配置的 MountRange 搬过去。
+[ConfigHidden]
 public sealed class NavigationConfig : IAutoConfig
 {
-    // Only mount up if the remaining travel distance exceeds this range.
-    [FloatRange(0f, 100f)]
     public float MountRange { get; set; } = 30f;
+}
+
+public sealed class MountConfig : IAutoConfig
+{
+    // 赶路时要不要自动上坐骑。关掉之后人物全程跑路（战斗中仍然会用冲刺赶路）。
+    [Checkbox(Order = 0)]
+    public bool UseMount { get; set; } = true;
+
+    // 只有剩余路程超过这个距离才会召唤坐骑，太近就直接跑过去。
+    [FloatRange(0f, 100f, Order = 1, Requires = nameof(UseMount))]
+    public float MountRange { get; set; } = 30f;
+
+    // 0 = 随机坐骑（坐骑轮盘），其它值是 Mount 表 RowId。
+    [MountSelect(Order = 2, Requires = nameof(UseMount))]
+    public uint PreferredMountId { get; set; } = 0;
 }
 
 public sealed class ItemInspectionConfig : IAutoConfig

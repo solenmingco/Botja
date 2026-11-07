@@ -28,7 +28,7 @@ public partial class FateNavigationService(
     IObjectTable objects,
     IPlayer player,
     IOverlayRenderer overlay,
-    NavigationConfig navigationConfig,
+    MountConfig mountConfig,
     HostileDetectionService hostileDetection,
     HostileDetectionConfig hostileDetectionConfig,
     IPluginLog log
@@ -1399,7 +1399,7 @@ public partial class FateNavigationService(
         nextMountAttemptMs = NowMs() + MountRetryIntervalMs;
 
         if (player.IsMounted() || player.IsMounting()) return;
-        if (Dist2D(player.Position, destination) < navigationConfig.MountRange) return;
+        if (Dist2D(player.Position, destination) < mountConfig.MountRange) return;
         if (player.IsCasting() || player.IsBetweenAreas() || player.IsInteracting()) return;
 
         // Mounting is blocked outright while fighting — sprint instead so combat doesn't reduce
@@ -1414,11 +1414,40 @@ public partial class FateNavigationService(
             return;
         }
 
+        // 坐骑总开关关掉时全程跑路。冲刺仍然保留（上面的战斗分支），因为那只是加速跑动。
+        if (!mountConfig.UseMount) return;
+
+        // 用户指定了具体坐骑时优先召唤它；这一只在这个地图 / 状态下按不出来（未解锁、禁飞区
+        // 之类）就静默退回坐骑轮盘，不要让赶路卡在「一直想上某一匹坐骑」上。
+        if (TryCastPreferredMount()) return;
+
         if (!Actions.MountRoulette.CanCast()) return;
 
         log.Debug("[FateNav] TryMount: casting MountRoulette");
         try { Actions.MountRoulette.Cast(); }
         catch (Exception ex) { log.Warning(ex, "[FateNav] MountRoulette cast failed"); }
+    }
+
+    private bool TryCastPreferredMount()
+    {
+        var mountId = mountConfig.PreferredMountId;
+        if (mountId == 0) return false;
+
+        // Actions.Mount(0) 本身就是轮盘，这里只处理明确了具体坐骑的情况。
+        var action = Actions.Mount(mountId);
+        if (!action.CanCast()) return false;
+
+        try
+        {
+            if (!action.Cast()) return false;
+            log.Debug("[FateNav] TryMount: casting mount {MountId}", mountId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, "[FateNav] mount {MountId} cast failed, falling back to roulette", mountId);
+            return false;
+        }
     }
 
     // World-space overlay so the current phase/target is visible in-game, not just in the log.

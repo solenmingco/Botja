@@ -17,6 +17,7 @@ internal static class BotjaConfigRegistration
         var config = loadedConfig ?? new PluginConfig();
 
         config.HydrateMissingSections();
+        config.Migrate();
 
         services.AddSingleton(config);
         services.AddSingleton<IPluginConfig>(config);

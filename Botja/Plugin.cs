@@ -46,6 +46,7 @@ public sealed class Plugin(IDalamudPluginInterface pluginInterface, IPluginLog l
         services.AddSingleton<ItemInspectionChecklistRenderer>();
         services.AddSingleton<CombatAiChecklistRenderer>();
         services.AddSingleton<BossModProfileChecklistRenderer>();
+        services.AddSingleton<MountSelectRenderer>();
         services.AddSingleton<AutoModeState>();
         services.LoadPictomancy();
         services.LoadRotations();
